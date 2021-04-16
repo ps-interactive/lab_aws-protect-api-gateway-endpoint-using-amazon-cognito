@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Globomantics Corporation</title>
+
+  <script src="https://sdk.amazonaws.com/js/aws-sdk-2.6.0.min.js"></script>
+  <script src="https://unpkg.com/amazon-cognito-identity-js@1.16.0/dist/aws-cognito-sdk.min.js"></script>
+  <script src="https://unpkg.com/amazon-cognito-identity-js@1.16.0/dist/amazon-cognito-identity.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.2.1.min.js"
+    integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"
+    integrity="sha384-Dziy8F2VlJQLMShA6FHWNul/veM9bCkRUaLqr199K94ntO5QUrLJBEbYegdSkkqX"
+    crossorigin="anonymous"></script>
+  <!-- JavaScript Bundle with Popper -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+    crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+  <!-- CSS only -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6" crossorigin="anonymous">
+
+  <style>
+    body {
+      margin: 30px;
+      border: 1px solid #4CAF50;
+      height: auto;
+    }
+  </style>
+  <script>
+    const AWS_REGION = 'us-west-2';
+    // const COGNITO_USER_POOL_ID = 'us-west-2_Fpj8cjlux';
+    // const CLIENT_ID = '6084iirdhh1vk3b4qgg5nlaf7k';
+
+    function init() {
+      const COGNITO_USER_POOL_ID = $("#cognito_user_pool_id")[0].value;
+      const CLIENT_ID = $("#client_id")[0].value;
+
+      AWS.config.region = AWS_REGION;
+      AWSCognito.config.region = AWS_REGION;
+      var data = {
+        UserPoolId: COGNITO_USER_POOL_ID,
+        ClientId: CLIENT_ID
+      };
+      userPool = new AWSCognito.CognitoIdentityServiceProvider.CognitoUserPool(data);
+      cognitoUser = userPool.getCurrentUser();
+    }
+
+    $(document).ready(function () {
+
+      regDialog = $("#reg-dialog-form").dialog({
+        autoOpen: false,
+        modal: false,
+        buttons: {
+          "Create an account": addUser,
+          Cancel: function () {
+            regDialog.dialog("close");
+          }
+        },
+        close: function () {
+          regForm[0].reset();
+        }
+      });
+
+      verifyDialog = $("#verify-dialog-form").dialog({
+        autoOpen: false,
+        modal: true,
+        buttons: {
+          "Confirm registration": confirmUser,
+          Cancel: function () {
+            verifyDialog.dialog("close");
+          }
+        },
+        close: function () {
+          $(this).dialog("close");
+        }
+      });
+
+      signInDialog = $("#sign-in-form").dialog({
+        autoOpen: false,
+        modal: true,
+        buttons: {
+          "Sign in": authenticateUser,
+          Cancel: function () {
+            signInDialog.dialog("close");
+          }
+        },
+        close: function () {
+          $(this).dialog("close");
+        }
+      });
+
+      function addUser() {
+        var firstName = $("#first-name")[0].value;
+        var lastName = $("#last-name")[0].value;
+        var username = $("#username")[0].value;
+        var password = $("#password")[0].value;
+        var email = $("#email")[0].value;
+        var attributeList = [
+          new AWSCognito.CognitoIdentityServiceProvider.CognitoUserAttribute({
+            Name: 'email', Value: email
+          }),
+          new AWSCognito.CognitoIdentityServiceProvider.CognitoUserAttribute({
+            Name: 'given_name', Value: firstName
+          }),
+          new AWSCognito.CognitoIdentityServiceProvider.CognitoUserAttribute({
+            Name: 'family_name', Value: lastName
+          }),
+        ];
+        userPool.signUp(username, password, attributeList, null, function (err, result) {
+          if (err) {
+            alert(err);
+            return;
+          }
+          cognitoUser = result.user;
+          console.log('user name is ' + cognitoUser.getUsername());
+          regDialog.dialog("close");
+          verifyDialog.dialog("open");
+        })
+      }
+
+      function confirmUser() {
+        var verificationCode = $("#verification-code")[0].value;
+        cognitoUser.confirmRegistration(verificationCode, true, function (err, result) {
+          if (err) {
+            alert(err);
+            return;
+          }
+          console.log('verification call result: ' + result);
+          verifyDialog.dialog("close");
+        });
+      }
+
+      function authenticateUser() {
+        var username = $("#sign-in-username")[0].value;
+        var password = $("#sign-in-password")[0].value;
+        var authenticationData = {
+          Username: username,
+          Password: password,
+        };
+        var authenticationDetails = new AWSCognito.CognitoIdentityServiceProvider.AuthenticationDetails(authenticationData);
+        var userData = {
+          Username: username,
+          Pool: userPool
+        };
+        var cognitoUser = new AWSCognito.CognitoIdentityServiceProvider.CognitoUser(userData);
+        cognitoUser.authenticateUser(authenticationDetails, {
+          onSuccess: function (result) {
+            var accessToken = result.getAccessToken().getJwtToken()
+            console.log('access token : ' + result.getAccessToken().getJwtToken());
+            /*Use the idToken for Logins Map when Federating User Pools with Cognito Identity or when passing through an Authorization Header to an API Gateway Authorizer*/
+            idToken = result.idToken.jwtToken;
+            console.log('idToken : ' + idToken);
+            $('#accessToken').text(accessToken)
+            $('#idToken').text(idToken)
+            // $('#authorization').val(idToken)
+
+            signInDialog.dialog("close");
+          },
+          onFailure: function (err) {
+            alert(err);
+          }
+        });
+      }
+
+      $('#register').click(function () {
+        regDialog.dialog("open");
+      });
+
+      regForm = regDialog.find("form").on("submit", function (event) {
+        event.preventDefault();
+        addUser();
+      });
+
+      $("#signin").on("click", function () {
+        signInDialog.dialog("open");
+      });
+
+      $('#btnSubmit').click(function () {
+        var xhr = new XMLHttpRequest();
+        var url = $('#url')[0].value;
+        console.log(url)
+        xhr.open('GET', url, true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.setRequestHeader("Authorization", idToken);
+        xhr.send();
+
+        xhr.onreadystatechange = function (e) {
+          if (xhr.readyState === 4 && xhr.status === 200) {
+
+            const dataList = xhr.responseText;
+            $('#results').text(dataList)
+          }
+          // else if (xhr.readyState === 4) {
+          // //     alert(xhr.responseText);
+          // // }
+        };
+      })
+
+      $('#btnInit').click(function () {
+        init();
+      })
+    });
+
+    
+
+  </script>
+</head>
+
+<body>
+
+  <form>
+    <div class="row mb-3">
+      <label for="inputEmail3" class="col-sm-2 col-form-label">Cognito User Pool ID</label>
+      <div class="col-sm-10">
+        <input type="" class="form-control" id="cognito_user_pool_id">
+      </div>
+    </div>
+    <div class="row mb-3">
+      <label for="inputPassword3" class="col-sm-2 col-form-label">Client ID</label>
+      <div class="col-sm-10">
+        <input type="" class="form-control" id="client_id">
+      </div>
+    </div>
+    <button id="btnInit" type="button">Initialize</button>
+  </form>
+  <br>
+  <br>
+
+  <button type="button" id="register" class="btn btn-primary">Register</button>
+  <button type="button" id="signin" class="btn btn-primary">Login</button>
+
+  <div id="reg-dialog-form" title="Register">
+    <form>
+      <fieldset>
+        <label for="first-name">First Name</label>
+        <input type="text" id="first-name" class="text ui-widget-content ui-corner-all">
+        <br>
+        <label for="last-name">Last Name</label>
+        <input type="text" id="last-name" class="text ui-widget-content ui-corner-all">
+        <br>
+        <label for="email">Email</label>
+        <br>
+        <input type="text" name="email" id="email" class="text ui-widget-content ui-corner-all">
+        <br>
+        <label for="username">Username</label>
+        <br>
+        <input type="text" name="username" id="username" class="text ui-widget-content ui-corner-all">
+        <br>
+        <label for="password">Password</label>
+        <br>
+        <input type="password" name="password" id="password" class="text ui-widget-content ui-corner-all">
+      </fieldset>
+    </form>
+  </div>
+
+  <div id="verify-dialog-form" title="Verify">
+    <form>
+      <fieldset>
+        <label for="verification-code">Verification Code</label>
+        <input type="text" id="verification-code" class="text ui-widget-content ui-corner-all">
+      </fieldset>
+    </form>
+  </div>
+
+  <div id="sign-in-form" title="Sign in">
+    <form>
+      <fieldset>
+        <label for="sign-in-username">Username</label>
+        <input type="text" id="sign-in-username" class="text ui-widget-content ui-corner-all">
+        <label for="sign-in-password">Password</label>
+        <input type="password" id="sign-in-password" class="text ui-widget-content ui-corner-all">
+      </fieldset>
+    </form>
+  </div>
+
+  <hr>
+
+  <div class="card">
+    <div class="card-header">
+      Access Token
+    </div>
+    <div class="card-body">
+      <p id="accessToken" class="card-text"></p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      Id Token
+    </div>
+    <div class="card-body">
+      <p id="idToken" class="card-text"></p>
+    </div>
+  </div>
+
+  </div>
+  <hr>
+
+  <form>
+    <div class="row mb-3">
+      <label for="inputEmail3" class="col-sm-2 col-form-label">API Gateway URL</label>
+      <div class="col-sm-10">
+        <input type="" class="form-control" id="url">
+      </div>
+    </div>
+    <div class="row mb-3">
+      <label for="inputPassword3" class="col-sm-2 col-form-label">Authorization Token</label>
+      <div class="col-sm-10">
+        <textarea class="form-control" id="authorization"></textarea>
+      </div>
+    </div>
+    <button id="btnSubmit" type="button">Submit</button>
+
+    <div>
+      <label for="sign-in-password">API Results</label>
+      <p id="results"></p>
+
+    </div>
+
+</body>
+
+</html>
