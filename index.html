@@ -4,10 +4,9 @@
 <head>
   <meta charset="UTF-8">
   <title>Globomantics Corporation</title>
-
   <script src="https://sdk.amazonaws.com/js/aws-sdk-2.6.0.min.js"></script>
-  <script src="https://unpkg.com/amazon-cognito-identity-js@1.16.0/dist/aws-cognito-sdk.min.js"></script>
-  <script src="https://unpkg.com/amazon-cognito-identity-js@1.16.0/dist/amazon-cognito-identity.min.js"></script>
+  <script src="https://unpkg.com/amazon-cognito-identity-js@4.6.0/dist/amazon-cognito-identity.min.js"></script>
+
   <script src="https://code.jquery.com/jquery-3.2.1.min.js"
     integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
   <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"
@@ -40,11 +39,12 @@
 
       AWS.config.region = AWS_REGION;
       AWSCognito.config.region = AWS_REGION;
-      var data = {
+      var poolData = {
         UserPoolId: COGNITO_USER_POOL_ID,
         ClientId: CLIENT_ID
       };
-      userPool = new AWSCognito.CognitoIdentityServiceProvider.CognitoUserPool(data);
+      
+      userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData)
       console.log(userPool)
       cognitoUser = userPool.getCurrentUser();
 
@@ -52,27 +52,27 @@
 
     $(document).ready(function () {
 
-      regDialog = $("#reg-dialog-form").dialog({
+      registrationDialog = $("#registration-dialog").dialog({
         autoOpen: false,
         modal: false,
         buttons: {
           "Create an account": addUser,
           Cancel: function () {
-            regDialog.dialog("close");
+            registrationDialog.dialog("close");
           }
         },
         close: function () {
-          regForm[0].reset();
+          registrationForm[0].reset();
         }
       });
 
-      verifyDialog = $("#verify-dialog-form").dialog({
+      verificationDialog = $("#verification-dialog").dialog({
         autoOpen: false,
         modal: true,
         buttons: {
           "Confirm registration": confirmUser,
           Cancel: function () {
-            verifyDialog.dialog("close");
+            verificationDialog.dialog("close");
           }
         },
         close: function () {
@@ -80,7 +80,7 @@
         }
       });
 
-      signInDialog = $("#sign-in-form").dialog({
+      signInDialog = $("#sign-in").dialog({
         autoOpen: false,
         modal: true,
         buttons: {
@@ -100,17 +100,16 @@
         var username = $("#username")[0].value;
         var password = $("#password")[0].value;
         var email = $("#email")[0].value;
-        var attributeList = [
-          new AWSCognito.CognitoIdentityServiceProvider.CognitoUserAttribute({
-            Name: 'email', Value: email
-          }),
-          new AWSCognito.CognitoIdentityServiceProvider.CognitoUserAttribute({
-            Name: 'given_name', Value: firstName
-          }),
-          new AWSCognito.CognitoIdentityServiceProvider.CognitoUserAttribute({
-            Name: 'family_name', Value: lastName
-          }),
-        ];
+
+        let attributeList = [];
+        const attributeEmail = new AmazonCognitoIdentity.CognitoUserAttribute(email);
+        const firstName = new AmazonCognitoIdentity.CognitoUserAttribute(firstName); 
+        const lastName = new AmazonCognitoIdentity.CognitoUserAttribute(lastName); 
+
+        attributeList.push(attributeEmail);
+        attributeList.push(firstName);
+        attributeList.push(lastName);      
+
         userPool.signUp(username, password, attributeList, null, function (err, result) {
           if (err) {
             alert(err);
@@ -118,8 +117,8 @@
           }
           cognitoUser = result.user;
           console.log('user name is ' + cognitoUser.getUsername());
-          regDialog.dialog("close");
-          verifyDialog.dialog("open");
+          registrationDialog.dialog("close");
+          verificationDialog.dialog("open");
         })
       }
 
@@ -131,7 +130,7 @@
             return;
           }
           console.log('verification call result: ' + result);
-          verifyDialog.dialog("close");
+          verificationDialog.dialog("close");
         });
       }
 
@@ -157,8 +156,7 @@
             console.log('idToken : ' + idToken);
             $('#accessToken').text(accessToken)
             $('#idToken').text(idToken)
-            // $('#authorization').val(idToken)
-
+           
             signInDialog.dialog("close");
           },
           onFailure: function (err) {
@@ -168,10 +166,10 @@
       }
 
       $('#register').click(function () {
-        regDialog.dialog("open");
+        registrationDialog.dialog("open");
       });
 
-      regForm = regDialog.find("form").on("submit", function (event) {
+      registrationForm = registrationDialog.find("form").on("submit", function (event) {
         event.preventDefault();
         addUser();
       });
@@ -195,9 +193,6 @@
             const dataList = xhr.responseText;
             $('#results').text(dataList)
           }
-          // else if (xhr.readyState === 4) {
-          // //     alert(xhr.responseText);
-          // // }
         };
       })
 
@@ -247,7 +242,7 @@
   <button type="button" id="register" class="btn btn-primary">Register</button>
   <button type="button" id="signin" class="btn btn-primary">Login</button>
 
-  <div id="reg-dialog-form" title="Register">
+  <div id="registration-dialog" title="Register">
     <form>
       <fieldset>
         <label for="first-name">First Name</label>
@@ -271,7 +266,7 @@
     </form>
   </div>
 
-  <div id="verify-dialog-form" title="Verify">
+  <div id="verification-dialog" title="Verify">
     <form>
       <fieldset>
         <label for="verification-code">Verification Code</label>
@@ -280,7 +275,7 @@
     </form>
   </div>
 
-  <div id="sign-in-form" title="Sign in">
+  <div id="sign-in" title="Sign in">
     <form>
       <fieldset>
         <label for="sign-in-username">Username</label>
@@ -313,27 +308,6 @@
 
   </div>
   <hr>
-
-  <!-- <form>
-    <div class="row mb-3">
-      <label for="inputEmail3" class="col-sm-2 col-form-label">API Gateway URL</label>
-      <div class="col-sm-10">
-        <input type="" class="form-control" id="url">
-      </div>
-    </div>
-    <div class="row mb-3">
-      <label for="inputPassword3" class="col-sm-2 col-form-label">Authorization Token</label>
-      <div class="col-sm-10">
-        <textarea class="form-control" id="authorization"></textarea>
-      </div>
-    </div>
-    <button id="btnSubmit" type="button">Submit</button>
-
-    <div>
-      <label for="sign-in-password">API Results</label>
-      <p id="results"></p>
-
-    </div> -->
 
 </body>
 
