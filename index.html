@@ -4,6 +4,25 @@
 <head>
   <meta charset="UTF-8">
   <title>Globomantics Corporation</title>
+
+  <!-- #### Credits:
+  - Some parts of this website is inspired from an idea shared by Yan Cui's (@theburningmonk) blog and video tutorials - https://theburningmonk.com/
+  - The Cognito API code sample used in this website is as per code provided here -  https://www.npmjs.com/package/amazon-cognito-identity-js#usage 
+  -->
+
+  <!-- 
+    After creating the Cognito User Pool, enter the UserPoolId and ClientId and click Initialize button.
+  This will create a CognitoUserPool object using the Cognito SDK.  
+  
+  To create a new user, the code uses, the signUp API in the Cognito SDK followed by 
+  confirmRegistration API to create and confirm the user registration. 
+
+  The sign-in method uses the authenticateUser API and returns three tokens 
+  to the app: Access Token, ID Token, and Refresh Token. 
+
+  Documentation - https://www.npmjs.com/package/amazon-cognito-identity-js#usage
+-->
+
   <script src="https://sdk.amazonaws.com/js/aws-sdk-2.6.0.min.js"></script>
   <script src="https://unpkg.com/amazon-cognito-identity-js@4.6.0/dist/amazon-cognito-identity.min.js"></script>
 
