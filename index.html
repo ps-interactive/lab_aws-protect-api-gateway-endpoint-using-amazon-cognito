@@ -57,12 +57,11 @@
       const CLIENT_ID = $("#client_id")[0].value;
 
       AWS.config.region = AWS_REGION;
-      AWSCognito.config.region = AWS_REGION;
       var poolData = {
         UserPoolId: COGNITO_USER_POOL_ID,
         ClientId: CLIENT_ID
       };
-      
+
       userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData)
       console.log(userPool)
       cognitoUser = userPool.getCurrentUser();
@@ -121,13 +120,29 @@
         var email = $("#email")[0].value;
 
         let attributeList = [];
-        const attributeEmail = new AmazonCognitoIdentity.CognitoUserAttribute(email);
-        const firstName = new AmazonCognitoIdentity.CognitoUserAttribute(firstName); 
-        const lastName = new AmazonCognitoIdentity.CognitoUserAttribute(lastName); 
+
+        const dataEmail = {
+          Name: 'email',
+          Value: email,
+        };
+
+        const dataFirstName = {
+          Name: 'given_name',
+          Value: firstName,
+        };
+
+        const dataLastName = {
+          Name: 'family_name',
+          Value: lastName,
+        };
+
+        const attributeEmail = new AmazonCognitoIdentity.CognitoUserAttribute(dataEmail);
+        const attributefirstName = new AmazonCognitoIdentity.CognitoUserAttribute(dataFirstName);
+        const attributelastName = new AmazonCognitoIdentity.CognitoUserAttribute(dataLastName);
 
         attributeList.push(attributeEmail);
-        attributeList.push(firstName);
-        attributeList.push(lastName);      
+        attributeList.push(attributefirstName);
+        attributeList.push(attributefirstName);
 
         userPool.signUp(username, password, attributeList, null, function (err, result) {
           if (err) {
@@ -160,12 +175,14 @@
           Username: username,
           Password: password,
         };
-        var authenticationDetails = new AWSCognito.CognitoIdentityServiceProvider.AuthenticationDetails(authenticationData);
+        var authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails(authenticationData);
+        
         var userData = {
           Username: username,
           Pool: userPool
         };
-        var cognitoUser = new AWSCognito.CognitoIdentityServiceProvider.CognitoUser(userData);
+
+        var cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
         cognitoUser.authenticateUser(authenticationDetails, {
           onSuccess: function (result) {
             var accessToken = result.getAccessToken().getJwtToken()
@@ -175,11 +192,11 @@
             console.log('idToken : ' + idToken);
             $('#accessToken').text(accessToken)
             $('#idToken').text(idToken)
-           
+
             signInDialog.dialog("close");
           },
           onFailure: function (err) {
-            alert(err);
+            alert(JSON.stringify(err));
           }
         });
       }
@@ -221,7 +238,7 @@
       })
     });
 
-    
+
 
   </script>
 </head>
@@ -246,7 +263,7 @@
   </form>
   <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 5">
     <div id="liveToast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true">
-      <div class="toast-header">        
+      <div class="toast-header">
         <strong class="me-auto">Cognito User Pool</strong>
         <small>1 min ago</small>
         <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
@@ -255,7 +272,7 @@
         User pool initialized
       </div>
     </div>
-  </div> 
+  </div>
   <br>
 
   <button type="button" id="register" class="btn btn-primary">Register</button>
